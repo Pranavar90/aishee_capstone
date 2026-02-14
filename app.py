@@ -44,7 +44,7 @@ st.markdown("""
     h1, h2, h3 {
         font-family: 'Outfit', sans-serif;
         letter-spacing: -0.02em;
-        background: linear-gradient(90deg, #ffffff 0%, #d1d5db 100%);
+        background: linear-gradient(90deg, #fff 0%, #ffffff 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
@@ -158,12 +158,10 @@ class AudioProcessor(AudioProcessorBase):
         return None
 
 # INTERFACE
-tcol1, tcol2 = st.columns([1.5, 2])
-with tcol1:
-    st.title("HUMAN SCREAM DETECTION")
-with tcol2:
-    st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
-    tab_live, tab_upload, tab_metrics = st.tabs(["🔴 Live", "📂 Upload File", "📄 Details"])
+st.title("HUMAN SCREAM DETECTION")
+
+# Tabs
+tab_live, tab_upload, tab_metrics = st.tabs(["🔴 Live", "📂 Upload File", "📄 Details"])
 
 with tab_live:
     col_main, col_stat = st.columns([2, 1])
@@ -478,7 +476,7 @@ if webrtc_ctx.state.playing:
                     alert_placeholder.markdown("""
                         <div style='background: rgba(255, 46, 46, 0.05); padding: 15px; border-radius: 8px; border: 1px dashed #ff2e2e;'>
                             <p style='color:#ff2e2e; margin:0; font-weight:bold;'>⚠️ HIGH INTENSITY VOCAL EVENT DETECTED</p>
-                            <p style='color:#8892b0; margin:0; font-size:12px;'>Source verification recommended.</p>
+                            <p style='color:#ced4da; margin:0; font-size:12px;'>Source verification recommended.</p>
                         </div>
                     """, unsafe_allow_html=True)
                     
@@ -529,4 +527,4 @@ if webrtc_ctx.state.playing:
             # st.write(f"Global Loop Error: {e}")
             pass
 
-st.markdown("<div style='margin-bottom:50px;'></div>", unsafe_allow_html=True)
+st.markdown("---")
