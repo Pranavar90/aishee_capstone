@@ -12,50 +12,91 @@ import queue
 import threading
 from src import features, models
 
-# Page Config
-st.set_page_config(
-    page_title="Safety Intelligence Framework",
-    page_icon="🚨",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Custom CSS for "Safety Aesthetic"
+# Premium Tactical UI Styling
 st.markdown("""
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+    :root {
+        --primary-glow: #ff2e2e;
+        --secondary-glow: #00ff9d;
+        --bg-dark: #080a0f;
+        --glass-bg: rgba(255, 255, 255, 0.03);
+        --glass-border: rgba(255, 255, 255, 0.08);
+    }
+
     .stApp {
-        background-color: #0E1117;
+        background: radial-gradient(circle at 50% 0%, #1a1f2e 0%, #080a0f 100%);
+        color: #e0e6ed;
+        font-family: 'Outfit', sans-serif;
     }
+
+    /* Glassmorphism Containers */
+    div[data-testid="stVerticalBlock"] > div:has(div.status-card) {
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    h1, h2, h3 {
+        font-family: 'Outfit', sans-serif;
+        letter-spacing: -0.02em;
+        background: linear-gradient(90deg, #fff 0%, #8892b0 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    /* Glow Status Cards */
+    .status-card {
+        padding: 24px;
+        border-radius: 16px;
+        text-align: center;
+        margin-bottom: 20px;
+        border: 1px solid transparent;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
     .status-normal {
-        color: #00FF00;
-        font-weight: bold;
-        padding: 10px;
-        border-radius: 5px;
-        background-color: rgba(0, 255, 0, 0.1);
-        text-align: center;
+        background: rgba(0, 255, 157, 0.05);
+        border-color: rgba(0, 255, 157, 0.2);
+        box-shadow: 0 0 20px rgba(0, 255, 157, 0.05);
+        color: #00ff9d;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', monospace;
     }
-    .status-warning {
-        color: #FFA500;
-        font-weight: bold;
-        padding: 10px;
-        border-radius: 5px;
-        background-color: rgba(255, 165, 0, 0.1);
-        text-align: center;
-    }
+
     .status-alert {
-        color: #FF0000;
-        font-weight: bold;
-        padding: 20px;
-        border-radius: 10px;
-        background-color: rgba(255, 0, 0, 0.2);
-        text-align: center;
-        font-size: 24px;
-        animation: pulse 1s infinite;
+        background: rgba(255, 46, 46, 0.1);
+        border-color: rgba(255, 46, 46, 0.4);
+        box-shadow: 0 0 40px rgba(255, 46, 46, 0.15);
+        color: #ff2e2e;
+        font-size: 28px;
+        font-weight: 800;
+        animation: threat-pulse 1.5s infinite;
     }
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.02); }
-        100% { transform: scale(1); }
+
+    @keyframes threat-pulse {
+        0% { box-shadow: 0 0 0 0 rgba(255, 46, 46, 0.4); }
+        70% { box-shadow: 0 0 0 20px rgba(255, 46, 46, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 46, 46, 0); }
+    }
+
+    /* Metric Styling */
+    [data-testid="stMetricValue"] {
+        font-family: 'JetBrains Mono', monospace;
+        color: #00ff9d !important;
+        font-size: 42px !important;
+    }
+
+    /* Sidebar Fix */
+    section[data-testid="stSidebar"] {
+        background-color: rgba(0, 0, 0, 0.3) !important;
+        border-right: 1px solid var(--glass-border);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -64,16 +105,12 @@ st.markdown("""
 st.sidebar.title("Configuration")
 sensitivity = st.sidebar.slider("Sensitivity Threshold", 0.0, 1.0, 0.75, 0.05)
 st.sidebar.markdown("---")
-st.sidebar.info("Model Status")
+st.sidebar.write("System configured for tactical audio acquisition.")
 
-# Load Models
 @st.cache_resource
 def load_models_demo():
-    model_dir = 'scream_models' # Adjust if needed
+    model_dir = 'scream_models'
     svm_path = os.path.join(model_dir, 'scream_svm.pkl')
-    # Use saved torch model path, or initialize class if needed
-    # For this demo, we need to know the hidden channels and layers used during training.
-    # We'll try to load them safely or use defaults.
     
     svm_model = None
     if os.path.exists(svm_path):
@@ -96,23 +133,12 @@ def load_models_demo():
             )
             ggnn_model.load_state_dict(torch.load(ggnn_path, map_location='cpu'))
             ggnn_model.eval()
-        except Exception as e:
-            st.sidebar.error(f"Error loading GGNN: {e}")
+        except:
             ggnn_model = None
     
     return svm_model, ggnn_model
 
 svm_model, ggnn_model = load_models_demo()
-
-if svm_model:
-    st.sidebar.success("SVM Loaded ✅")
-else:
-    st.sidebar.warning("SVM Not Found ❌ (Run training first)")
-
-if ggnn_model:
-    st.sidebar.success("GGNN Loaded ✅")
-else:
-    st.sidebar.warning("GGNN Not Found ❌ (Run training first)")
 
 # Thread-safe queue for audio data transmission between WebRTC thread and Streamlit Main thread
 audio_queue = queue.Queue()
@@ -131,18 +157,21 @@ class AudioProcessor(AudioProcessorBase):
         # Return None or empty to prevent loopback/playback in the browser
         return None
 
-st.title("🛡️ Safety Intelligence: Scream Detection")
-st.markdown("Real-time audio monitoring system using **SVM + GGNN Ensemble**.")
+# INTERFACE
+st.title("HUMAN SCREAM DETECTION")
 
-# Tabs for Mode Selection
-tab_live, tab_upload, tab_metrics = st.tabs(["🔴 Live Monitoring", "📂 File Analysis", "📊 System Deep-Dive"])
+# Tabs
+tab_live, tab_upload, tab_metrics = st.tabs(["🔴 Live", "📂 Upload File", "📄 Details"])
 
 with tab_live:
-    # Two columns
-    col1, col2 = st.columns([2, 1])
+    col_main, col_stat = st.columns([2, 1])
 
-    with col1:
-        st.subheader("Live Monitor")
+    with col_main:
+        st.markdown("""
+            <div style='padding: 10px; border-left: 4px solid #00ff9d; margin-bottom: 20px;'>
+                <h3 style='margin:0;'>Live Acquisition</h3>
+            </div>
+        """, unsafe_allow_html=True)
         
         webrtc_ctx = webrtc_streamer(
             key="scream-detection",
@@ -151,16 +180,20 @@ with tab_live:
             media_stream_constraints={"video": False, "audio": True},
             async_processing=True,
         )
+        
+        # Spectrogram directly under the stream
+        st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
+        fig_placeholder = st.empty()
 
-    with col2:
-        st.subheader("System Status")
+    with col_stat:
+        st.markdown("""
+            <div style='padding: 10px; border-left: 4px solid #ff2e2e; margin-bottom: 20px;'>
+                <h3 style='margin:0;'>System HUD</h3>
+            </div>
+        """, unsafe_allow_html=True)
         status_placeholder = st.empty()
-        alert_placeholder = st.empty()
         confidence_placeholder = st.empty()
-
-    # Spectrogram Placeholder
-    st.subheader("Spectral Analysis")
-    fig_placeholder = st.empty()
+        alert_placeholder = st.empty()
 
 with tab_upload:
     st.subheader("Upload Audio for Safety Scan")
@@ -249,7 +282,44 @@ with tab_upload:
                     plt.close(fig)
 
 with tab_metrics:
-    st.header("🧠 Model Architecture & Performance")
+    st.header("🧠 Neural Framework Architecture")
+    
+    # Architecture Diagram via Graphviz
+    st.graphviz_chart("""
+    digraph G {
+        rankdir=LR;
+        node [shape=box, style=filled, color="#e0e6ed", fontname="Outfit", fontcolor="black"];
+        edge [color="gray"];
+        
+        subgraph cluster_0 {
+            label = "Feature Extraction";
+            style=dashed;
+            MFCC [label="20 MFCCs"];
+            Graph [label="Temporal Audio Graph"];
+        }
+        
+        subgraph cluster_1 {
+            label = "Neural Ensemble";
+            style=dashed;
+            SVM [label="SVM (RBF Kernel)"];
+            GGNN [label="Gated Graph Neural Net"];
+        }
+        
+        MFCC -> SVM;
+        Graph -> GGNN;
+        
+        SVM -> Ensemble;
+        GGNN -> Ensemble;
+        
+        Ensemble [label="Peak Search Ensemble", shape=diamond, color="#00ff9d"];
+        Ensemble -> Output [label="Decision"];
+        
+        Output [label="Alert / Ambient", shape=oval, color="#ff2e2e"];
+    }
+    """)
+    
+    st.markdown("---")
+    st.subheader("Model Performance")
     
     # Load config for display
     model_dir = 'scream_models'
@@ -411,88 +481,55 @@ if webrtc_ctx.state.playing:
                     else:
                         scream_prob = 0.0 # No models
                 
-                # Update UI
+                # UI Updates with Glow
                 if scream_prob > sensitivity:
-                    status_placeholder.markdown('<div class="status-alert">🚨 ALERT: SCREAM DETECTED</div>', unsafe_allow_html=True)
-                    alert_placeholder.markdown("### ⚠️ HIGH PRIORITY")
+                    status_placeholder.markdown('<div class="status-card status-alert">THREAT DETECTED: HUMAN SCREAM</div>', unsafe_allow_html=True)
+                    alert_placeholder.markdown("""
+                        <div style='background: rgba(255, 46, 46, 0.05); padding: 15px; border-radius: 8px; border: 1px dashed #ff2e2e;'>
+                            <p style='color:#ff2e2e; margin:0; font-weight:bold;'>⚠️ HIGH INTENSITY VOCAL EVENT DETECTED</p>
+                            <p style='color:#8892b0; margin:0; font-size:12px;'>Source verification recommended.</p>
+                        </div>
+                    """, unsafe_allow_html=True)
                     
-                    # Sound Alert
-                    # Generate a beep (sine wave)
-                    # To avoid re-generating every frame, we could cache it, but it's fast.
-                    # Or check if we already played it recently to avoid stutter.
-                    # For a demo, let's just show the audio player which tries to autoplay.
-                    
-                    # 1kHz sine wave for 0.5s
-                    # We can't easily push audio back through WebRTC in this mode (SendRecv usually for video/audio transform).
-                    # We'll use st.audio which might refresh the app structure, which is not ideal in a loop.
-                    # A better way is to assume the visual alert is sufficient for the "demo" constraint 
-                    # OR use a placeholder that we update.
-                    
-                    # NOTE: Updating st.audio in a loop might cause the frontend to re-mount the player.
-                    # We will skip the actual audio element to maintain stability, as requested "trigger ... sound alert" 
-                    # is best done via client-side JS, which is hard here.
-                    # But we can try a single placeholder update if not already alerting.
-                    
-                    # simple beep logic:
                     if 'alert_active' not in st.session_state:
                         st.session_state['alert_active'] = True
-                        # Play sound
-                        # Create a dummy beep
                         import io
                         import scipy.io.wavfile
-                        
-                        sample_rate = 44100
-                        duration = 1.0
+                        sample_rate, duration = 44100, 0.8
                         t = np.linspace(0, duration, int(sample_rate * duration), False)
-                        note = np.sin(2 * np.pi * 1000 * t) * (0.5 * 32767)
+                        note = np.sin(2 * np.pi * 1000 * t) * (0.3 * 32767)
                         loud_note = note.astype(np.int16)
-                        
                         virtual_file = io.BytesIO()
                         scipy.io.wavfile.write(virtual_file, sample_rate, loud_note)
-                        
-                        # st.audio(virtual_file, format='audio/wav', autoplay=True) # Autoplay might need user interaction first
-                        # We'll just display it.
                         alert_placeholder.audio(virtual_file, format='audio/wav', autoplay=True)
 
                 elif not is_silent:
-                    status_placeholder.markdown('<div class="status-warning">🗣️ Talking / Ambient</div>', unsafe_allow_html=True)
+                    status_placeholder.markdown('<div class="status-card status-normal">ACTIVE: ANALYZING SPEECH/AMBIENT</div>', unsafe_allow_html=True)
                     alert_placeholder.empty()
-                    if 'alert_active' in st.session_state:
-                        del st.session_state['alert_active']
+                    if 'alert_active' in st.session_state: del st.session_state['alert_active']
                 else:
-                    status_placeholder.markdown('<div class="status-normal">🟢 Monitoring (Silence)</div>', unsafe_allow_html=True)
+                    status_placeholder.markdown('<div class="status-card status-normal" style="opacity:0.6;">SYSTEM READY: MONITORING SILENCE</div>', unsafe_allow_html=True)
                     alert_placeholder.empty()
-                    if 'alert_active' in st.session_state:
-                         del st.session_state['alert_active']
+                    if 'alert_active' in st.session_state: del st.session_state['alert_active']
 
-                confidence_placeholder.metric("Scream Probability", f"{scream_prob:.2f}")
+                confidence_placeholder.metric("Peak Confidence", f"{scream_prob:.2f}")
 
-                confidence_placeholder.metric("Scream Probability", f"{scream_prob:.2f}")
-
-                # Update Spectrogram
+                # Improved High-Speed Spectrometer
                 try:
-                    # Create or update plot
-                    # Using a simpler plot if fig_placeholder has issues
-                    fig, ax = plt.subplots(figsize=(8, 3))
-                    plt.style.use('dark_background')
+                    plt.close('all') # Clear memory
+                    fig, ax = plt.subplots(figsize=(10, 3), dpi=80)
+                    fig.patch.set_facecolor('#080a0f')
+                    ax.set_facecolor('#080a0f')
                     
-                    # Compute STFT
-                    D = librosa.amplitude_to_db(np.abs(librosa.stft(audio_chunk_resampled, n_fft=512)), ref=np.max)
+                    # Log-frequency STFT
+                    D = librosa.amplitude_to_db(np.abs(librosa.stft(audio_chunk_resampled, n_fft=512, hop_length=128)), ref=np.max)
                     
-                    # Display
-                    librosa.display.specshow(D, sr=target_sr, x_axis='time', y_axis='hz', ax=ax, cmap='magma')
-                    ax.set_title("Live Spectrometer", color='white', fontsize=10)
-                    ax.set_xlabel("Time (s)", color='gray', fontsize=8)
-                    ax.set_ylabel("Freq (Hz)", color='gray', fontsize=8)
-                    
-                    # Use a fixed layout to prevent jumping
-                    fig.tight_layout()
-                    
-                    # Render to placeholder
+                    # Glow effect viz
+                    img = librosa.display.specshow(D, sr=target_sr, x_axis='time', y_axis='hz', ax=ax, cmap='magma')
+                    ax.axis('off')
+                    fig.tight_layout(pad=0)
                     fig_placeholder.pyplot(fig)
-                    plt.close(fig)
-                except Exception as vis_error:
-                    # st.write(f"Vis Error: {vis_error}")
+                except:
                     pass
 
         except queue.Empty:
