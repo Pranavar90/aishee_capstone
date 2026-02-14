@@ -201,7 +201,12 @@ def train_and_optimize():
     config = {
         "num_node_features": data_graphs[0].num_node_features,
         "hidden_channels": best_p['hidden_channels'],
-        "num_layers": best_p['num_layers']
+        "num_layers": best_p['num_layers'],
+        "svm_accuracy": float(study_svm.best_value),
+        "ggnn_accuracy": float(study_ggnn.best_value),
+        "total_samples": len(processed_data),
+        "scream_samples": n_scream,
+        "non_scream_samples": n_noise
     }
     with open(os.path.join('scream_models', 'config.json'), 'w') as f:
         json.dump(config, f)

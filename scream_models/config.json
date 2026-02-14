@@ -1,1 +1,1 @@
-{"num_node_features": 23, "hidden_channels": 64, "num_layers": 4}
+{"num_node_features": 23, "hidden_channels": 59, "num_layers": 1, "svm_accuracy": 0.8125894134477826, "ggnn_accuracy": 0.8226037195994278, "total_samples": 3493, "scream_samples": 862, "non_scream_samples": 2631}

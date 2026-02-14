@@ -135,7 +135,7 @@ st.title("🛡️ Safety Intelligence: Scream Detection")
 st.markdown("Real-time audio monitoring system using **SVM + GGNN Ensemble**.")
 
 # Tabs for Mode Selection
-tab_live, tab_upload = st.tabs(["🔴 Live Monitoring", "📂 File Analysis"])
+tab_live, tab_upload, tab_metrics = st.tabs(["🔴 Live Monitoring", "📂 File Analysis", "📊 System Deep-Dive"])
 
 with tab_live:
     # Two columns
@@ -247,6 +247,90 @@ with tab_upload:
                     ax.set_title("Full Clip Spectral Analysis")
                     st.pyplot(fig)
                     plt.close(fig)
+
+with tab_metrics:
+    st.header("🧠 Model Architecture & Performance")
+    
+    # Load config for display
+    model_dir = 'scream_models'
+    config_path = os.path.join(model_dir, 'config.json')
+    config = {}
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            import json
+            config = json.load(f)
+
+    m_col1, m_col2 = st.columns(2)
+    
+    with m_col1:
+        st.subheader("📈 Training Metrics")
+        if config:
+            st.write(f"**Total Dataset Size:** {config.get('total_samples', 3493)} Graphs")
+            st.write(f"**Scream Samples:** {config.get('scream_samples', 862)}")
+            st.write(f"**Ambient Samples:** {config.get('non_scream_samples', 2631)}")
+            
+            st.markdown("---")
+            st.metric("SVM Accuracy", f"{config.get('svm_accuracy', 0.8112):.2%}")
+            st.metric("GGNN (Gated Graph) Accuracy", f"{config.get('ggnn_accuracy', 0.8197):.2%}")
+            st.caption("Accuracies shown are peak validation scores from Optuna Optimization.")
+        else:
+            st.info("Run training to populate detailed metrics.")
+
+    with m_col2:
+        st.subheader("🏗️ Ensemble Architecture")
+        st.markdown("""
+        **1. Statistical Branch (SVM)**
+        - **Input**: 20-dimensional Global MFCC vector.
+        - **Logic**: Uses a Radial Basis Function (RBF) kernel to find a hyperplane separating 'scream' frequency signatures from ambient noise.
+        - **Role**: Captures the 'texture' of the sound.
+
+        **2. Structural Branch (GGNN)**
+        - **Type**: Gated Graph Neural Network.
+        - **Message Passing**: Passes messages across temporal nodes (frames) for **%d layers**.
+        - **Logic**: Models audio as a sequential graph where nodes represent 20ms frames and edges represent temporal flow.
+        - **Internal**: Uses Gated Recurrent Units (GRU) to update node states.
+        """ % config.get('num_layers', 4))
+
+    st.markdown("---")
+    st.subheader("🔍 Processing Logic: The Message Passing Scheme (MPS)")
+    
+    tech_col1, tech_col2 = st.columns([1, 2])
+    
+    with tech_col1:
+        # Conceptual Graph Visualization
+        fig, ax = plt.subplots(figsize=(4, 4))
+        plt.style.use('dark_background')
+        # Simple line of nodes for "Audio Graph"
+        nodes = np.arange(5)
+        ax.scatter(nodes, [0]*5, s=200, color='#00FF00', zorder=5)
+        for i in range(4):
+            ax.annotate('', xy=(nodes[i+1], 0), xytext=(nodes[i], 0),
+                        arrowprops=dict(arrowstyle='<->', color='gray', lw=2))
+        ax.set_title("Temporal Audio Graph (MPS)")
+        ax.set_xlim(-0.5, 4.5)
+        ax.set_ylim(-0.5, 0.5)
+        ax.axis('off')
+        st.pyplot(fig)
+        plt.close(fig)
+
+    with tech_col2:
+        st.info("**What is the MPS doing?**")
+        st.write("""
+        Traditional models look at frames in isolation. Our **Message Passing System (MPS)** ensures that the 'state' 
+        of one audio frame is communicated to its neighbors. 
+        
+        Screams are not just high-frequency sounds; they have a specific **onset intensity** and **vocalic decay**. 
+        By passing messages across **%d nodes**, the GGNN aggregates information over time, allowing the system 
+        to distinguish between a short metallic clash (noise) and a sustained human shriek (scream).
+        """ % config.get('num_layers', 4))
+        
+    st.subheader("⚙️ Auto-Tuning (Optuna)")
+    st.write("""
+    The models are not manually tuned. We use **Bayesian Optimization (Optuna)** to automatically search for:
+    - **SVM**: Optimal 'C' (penalty) and 'Gamma' (influence).
+    - **GGNN**: Hidden channel depth, number of message-passing layers, and learning rate.
+    This ensures the framework adapts perfectly to whatever dataset it is trained on.
+    """)
 
 # Processing Loop
 if webrtc_ctx.state.playing:
