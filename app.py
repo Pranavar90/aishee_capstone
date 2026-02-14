@@ -27,7 +27,7 @@ st.markdown("""
 
     .stApp {
         background: radial-gradient(circle at 50% 0%, #1a1f2e 0%, #080a0f 100%);
-        color: #e0e6ed;
+        color: #ffffff;
         font-family: 'Outfit', sans-serif;
     }
 
@@ -44,7 +44,7 @@ st.markdown("""
     h1, h2, h3 {
         font-family: 'Outfit', sans-serif;
         letter-spacing: -0.02em;
-        background: linear-gradient(90deg, #fff 0%, #8892b0 100%);
+        background: linear-gradient(90deg, #ffffff 0%, #d1d5db 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
@@ -158,21 +158,17 @@ class AudioProcessor(AudioProcessorBase):
         return None
 
 # INTERFACE
-st.title("HUMAN SCREAM DETECTION")
-
-# Tabs
-tab_live, tab_upload, tab_metrics = st.tabs(["🔴 Live", "📂 Upload File", "📄 Details"])
+tcol1, tcol2 = st.columns([1.5, 2])
+with tcol1:
+    st.title("HUMAN SCREAM DETECTION")
+with tcol2:
+    st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
+    tab_live, tab_upload, tab_metrics = st.tabs(["🔴 Live", "📂 Upload File", "📄 Details"])
 
 with tab_live:
     col_main, col_stat = st.columns([2, 1])
 
     with col_main:
-        st.markdown("""
-            <div style='padding: 10px; border-left: 4px solid #00ff9d; margin-bottom: 20px;'>
-                <h3 style='margin:0;'>Live Acquisition</h3>
-            </div>
-        """, unsafe_allow_html=True)
-        
         webrtc_ctx = webrtc_streamer(
             key="scream-detection",
             mode=WebRtcMode.SENDONLY,
@@ -186,11 +182,6 @@ with tab_live:
         fig_placeholder = st.empty()
 
     with col_stat:
-        st.markdown("""
-            <div style='padding: 10px; border-left: 4px solid #ff2e2e; margin-bottom: 20px;'>
-                <h3 style='margin:0;'>System HUD</h3>
-            </div>
-        """, unsafe_allow_html=True)
         status_placeholder = st.empty()
         confidence_placeholder = st.empty()
         alert_placeholder = st.empty()
@@ -538,5 +529,4 @@ if webrtc_ctx.state.playing:
             # st.write(f"Global Loop Error: {e}")
             pass
 
-st.markdown("---")
-st.caption("Safety Intelligence System - Modular Framework PoC")
+st.markdown("<div style='margin-bottom:50px;'></div>", unsafe_allow_html=True)
