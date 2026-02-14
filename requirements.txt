@@ -1,0 +1,16 @@
+kagglehub
+librosa
+numpy
+pandas
+scikit-learn
+torch
+torch_geometric
+optuna
+streamlit
+streamlit-webrtc
+matplotlib
+joblib
+pydub
+scipy
+av
+opencv-python-headless

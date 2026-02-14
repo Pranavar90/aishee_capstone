@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+
+# Data and Models
+data_download/
+*.zip
+# We keep scream_models/ because it contains the trained weights
+# But we track the binaries with LFS
+
+# IDEs
+.vscode/
+.idea/
+
+# Streamlit
+.streamlit/config.toml
