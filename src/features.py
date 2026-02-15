@@ -27,7 +27,13 @@ def extract_features(audio_path, sr=22050, n_mfcc=20):
 def extract_features_from_array(y, sr=22050, n_mfcc=20):
     """
     Extracts features from a numpy array (audio buffer).
+    Included: MFCCs, Spectral Centroid, ZCR, RMS, Bandwidth, and Flatness.
     """
+    # Audio Normalization: Scale to [-1.0, 1.0] to handle volume differences
+    max_val = np.max(np.abs(y))
+    if max_val > 0:
+        y = y / max_val
+
     n_fft = 1024
     hop_length = 512
     
@@ -42,10 +48,20 @@ def extract_features_from_array(y, sr=22050, n_mfcc=20):
     
     # 4. RMS Energy
     rms = librosa.feature.rms(y=y, frame_length=n_fft, hop_length=hop_length)
+
+    # 5. Spectral Bandwidth
+    bandwidth = librosa.feature.spectral_bandwidth(y=y, sr=sr, n_fft=n_fft, hop_length=hop_length)
+
+    # 6. Spectral Flatness (Crucial for distinguishing noise from tonal screams)
+    flatness = librosa.feature.spectral_flatness(y=y, n_fft=n_fft, hop_length=hop_length)
     
-    # Concatenate
-    features = np.vstack([mfccs, spectral_centroid, zcr, rms])
+    # Concatenate all features
+    features = np.vstack([mfccs, spectral_centroid, zcr, rms, bandwidth, flatness])
     features = features.T
+    
+    # Safety Check: Replace NaNs/Infs with 0 to prevent CUDA errors
+    features = np.nan_to_num(features, nan=0.0, posinf=0.0, neginf=0.0)
+    
     return features
 
 def build_graph_from_features(features):

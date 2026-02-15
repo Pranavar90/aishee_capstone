@@ -18,4 +18,5 @@ data_download/
 .idea/
 
 # Streamlit
-.streamlit/config.toml
+# We keep config.toml to preserve the localhost server address fix
+# .streamlit/config.toml
