@@ -186,7 +186,7 @@ with tab_live:
 
 with tab_upload:
     st.subheader("Upload Audio for Safety Scan")
-    uploaded_file = st.file_uploader("Choose a WAV/MP3 file", type=["wav", "mp3"])
+    uploaded_file = st.file_uploader("Choose an audio file", type=["wav", "mp3", "ogg", "flac", "m4a"])
     
     if uploaded_file is not None:
         # Load audio
@@ -223,9 +223,11 @@ with tab_upload:
                     ggnn_prob = 0.0
                     
                     if svm_model:
-                        mfccs = feats[:, :20]
-                        global_mfccs = np.mean(mfccs, axis=0).reshape(1, -1)
-                        svm_prob = svm_model.predict_proba(global_mfccs)[0][1]
+                        # ENHANCED SVM VECTOR: Mean + Std of ALL 25 features for 50D input
+                        m = np.mean(feats, axis=0)
+                        s = np.std(feats, axis=0)
+                        svm_vec = np.concatenate([m, s]).reshape(1, -1)
+                        svm_prob = svm_model.predict_proba(svm_vec)[0][1]
                         
                     if ggnn_model:
                         try:
@@ -438,10 +440,11 @@ if webrtc_ctx.state.playing:
                     # SVM
                     if svm_model:
                         try:
-                            # SVM expects global average of first 20 MFCCs
-                            mfccs = feats[:, :20]
-                            global_mfccs = np.mean(mfccs, axis=0).reshape(1, -1)
-                            svm_prob = svm_model.predict_proba(global_mfccs)[0][1]
+                            # ENHANCED SVM VECTOR: Mean + Std of ALL 25 features for 50D input
+                            m = np.mean(feats, axis=0)
+                            s = np.std(feats, axis=0)
+                            svm_vec = np.concatenate([m, s]).reshape(1, -1)
+                            svm_prob = svm_model.predict_proba(svm_vec)[0][1]
                         except:
                             pass
                             

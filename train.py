@@ -42,7 +42,10 @@ def train_and_optimize(args):
                 feats = features.extract_features(fpath, sr=22050)
                 if feats is not None:
                     g_data = features.build_graph_from_features(feats)
-                    svm_vec = np.mean(feats[:, :20], axis=0)
+                    # Use Mean + Std Dev of ALL 25 features for a 50D SVM vector
+                    m = np.mean(feats, axis=0)
+                    s = np.std(feats, axis=0)
+                    svm_vec = np.concatenate([m, s])
                     
                     if g_data is not None:
                         g_data.y = torch.tensor([label], dtype=torch.long)

@@ -1,9 +1,9 @@
 {
     "num_node_features": 25,
-    "hidden_channels": 67,
+    "hidden_channels": 60,
     "num_layers": 6,
-    "svm_accuracy": 0.8154506437768241,
-    "ggnn_accuracy": 0.8726752503576538,
+    "svm_accuracy": 0.8626609442060086,
+    "ggnn_accuracy": 0.8698140200286123,
     "total_samples": 3493,
     "scream_samples": 862,
     "non_scream_samples": 2631,

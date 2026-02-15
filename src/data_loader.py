@@ -87,7 +87,8 @@ def get_file_paths(dataset_path):
     
     for root, dirs, files in os.walk(dataset_path):
         for file in files:
-            if file.lower().endswith('.wav'):
+            ext = file.lower()
+            if ext.endswith(('.wav', '.mp3', '.ogg', '.flac', '.m4a')):
                 full_path = os.path.join(root, file)
                 root_lower = root.lower()
                 # Heuristic for labeling based on folder names
