@@ -8,6 +8,7 @@ torch_geometric
 optuna
 streamlit
 streamlit-webrtc
+tqdm
 matplotlib
 joblib
 pydub

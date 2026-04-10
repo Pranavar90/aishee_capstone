@@ -2,21 +2,26 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
 .venv/
 env/
 venv/
 ENV/
 
 # Data and Models
+data_acquisition/
 data_download/
 *.zip
-# We keep scream_models/ because it contains the trained weights
-# But we track the binaries with LFS
+*.wav
+*.mp3
+
+# Ignore caches
+.ruff_cache/
+**/__pycache__/
 
 # IDEs
 .vscode/
 .idea/
 
 # Streamlit
-# We keep config.toml to preserve the localhost server address fix
-# .streamlit/config.toml
+.streamlit/

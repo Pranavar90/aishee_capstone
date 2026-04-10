@@ -1,0 +1,69 @@
+# Model Configuration for Scream Detection System
+# Edit this file to adjust model behavior
+
+# --- Detection Settings ---
+detection:
+  sensitivity_threshold: 50
+  min_audio_duration: 1.0
+  max_processing_time: 1000
+  window_size: 2.0
+  hop_size: 1.0
+
+# --- Model Specific Hyperparameters ---
+multitask_ggnn:
+  hyperparameters:
+    hidden_channels: 128
+    num_layers: 6
+    lstm_hidden: 128
+    learning_rate: 0.0005
+    weight_decay: 0.01
+    dropout: 0.3
+    alpha: 0.6            # Multi-task weight (Scream vs Emotion)
+    use_dann: true        # Domain Adversarial Training
+    domain_weight: 0.2    # weight for adversarial loss
+  
+scream_ggnn:
+  hyperparameters:
+    hidden_channels: 64
+    num_layers: 4
+    learning_rate: 0.001
+    dropout: 0.5
+
+scream_svm:
+  hyperparameters:
+    C: 1.0
+    kernel: "rbf"
+    gamma: "scale"
+
+# --- Data & Dataset Configuration ---
+data:
+  sample_rate: 22050
+  n_mfcc: 20
+  n_fft: 1024
+  hop_length: 512
+  local_data_dir: "data_acquisition"  # Where data will be moved to be visible
+  
+  datasets:
+    - name: current_scream
+      enabled: true
+    - name: ravdess
+      enabled: true
+    - name: crema_d
+      enabled: true
+
+# --- Global Training Settings ---
+training:
+  epochs: 60
+  batch_size: 32
+  val_split: 0.15
+  early_stopping_patience: 12
+  save_learning_curves: true
+  metrics_report_path: "reports/training_metrics.png"
+
+# --- Output Paths ---
+paths:
+  output_dir: scream_models
+  svm_model: scream_models/scream_svm.pkl
+  ggnn_model: scream_models/scream_ggnn.pt
+  multitask_model: scream_models/multitask_ggnn.pt
+  log_file: "reports/training.log"
