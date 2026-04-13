@@ -3,7 +3,7 @@
 
 # --- Detection Settings ---
 detection:
-  sensitivity_threshold: 50
+  sensitivity_threshold: 20
   min_audio_duration: 1.0
   max_processing_time: 1000
   window_size: 2.0

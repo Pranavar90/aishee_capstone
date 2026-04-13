@@ -485,7 +485,7 @@ def load_models_demo():
 
     ggnn_model = None
     config_path = os.path.join(model_dir, "config.json")
-    ggnn_path = os.path.join(model_dir, "scream_ggnn.pt")
+    ggnn_path = os.path.join(model_dir, "multitask_ggnn.pt")
 
     if os.path.exists(config_path) and os.path.exists(ggnn_path):
         try:

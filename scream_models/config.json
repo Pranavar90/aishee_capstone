@@ -1,11 +1,26 @@
 {
-  "num_node_features": 29,
-  "hidden_channels": 128,
-  "num_layers": 6,
-  "lstm_hidden": 128,
+  "num_node_features": 49,
+  "hidden_channels": 256,
+  "num_layers": 8,
+  "lstm_hidden": 256,
   "num_emotion_classes": 5,
-  "scream_accuracy": 0.6888888888888889,
-  "use_dann": true,
   "model_type": "MultiHeadGGNN",
-  "emotions": ["Neutral", "Happy", "Sad", "Angry", "Fearful"]
+  "use_dann": true,
+  "scream_accuracy": 0.882667,
+  "emotion_accuracy": 0.812444,
+  "emotions": [
+    "Neutral",
+    "Happy",
+    "Sad",
+    "Angry",
+    "Fearful"
+  ],
+  "last_trained": "2026-04-13T00:49:55",
+  "datasets": [
+    "scream_detection",
+    "RAVDESS",
+    "CREMA-D",
+    "TESS"
+  ],
+  "features": "20_MFCC + 20_delta_MFCC + 5_spectral + 4_stress"
 }

@@ -1,22 +1,30 @@
+"""
+src/models.py — Model definitions.
+
+MultiHeadGGNN  — production multi-task model (scream + emotion + DANN domain)
+ScreamGGNN     — legacy single-task binary detector (kept for compatibility)
+ScreamSVM      — sklearn SVM wrapper
+"""
+
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import GatedGraphConv, global_mean_pool
+from torch.nn import Linear, BatchNorm1d
+from torch_geometric.nn import GatedGraphConv, global_mean_pool, global_max_pool
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.svm import SVC
 
 
-class ScreamSVM(BaseEstimator, ClassifierMixin):
-    def __init__(self, C=1.0, gamma="scale"):
-        self.C = C
-        self.gamma = gamma
-        self.pipeline = Pipeline(
-            [
-                ("scaler", StandardScaler()),
-                ("svm", SVC(kernel="rbf", C=C, gamma=gamma, probability=True)),
-            ]
-        )
+# ── SVM ───────────────────────────────────────────────────────────────────────
+
+class ScreamSVM:
+    """Binary scream detector: StandardScaler + RBF SVC."""
+
+    def __init__(self, C=10.0, gamma="scale"):
+        self.pipeline = Pipeline([
+            ("scaler", StandardScaler()),
+            ("svc",    SVC(C=C, kernel="rbf", gamma=gamma, probability=True)),
+        ])
 
     def fit(self, X, y):
         self.pipeline.fit(X, y)
@@ -29,194 +37,129 @@ class ScreamSVM(BaseEstimator, ClassifierMixin):
         return self.pipeline.predict_proba(X)
 
 
+# ── Single-task GGNN (legacy) ─────────────────────────────────────────────────
+
 class ScreamGGNN(torch.nn.Module):
-    def __init__(self, num_node_features, hidden_channels, num_layers, num_classes=2):
-        super(ScreamGGNN, self).__init__()
-
-        self.hidden_channels = hidden_channels
-        self.lin0 = torch.nn.Linear(num_node_features, hidden_channels)
-        self.bn0 = torch.nn.BatchNorm1d(hidden_channels)
-        self.ggnn = GatedGraphConv(hidden_channels, num_layers=num_layers)
-        self.bn1 = torch.nn.BatchNorm1d(hidden_channels)
-
-        # Classification head
-        self.lin1 = torch.nn.Linear(hidden_channels, hidden_channels)
-        self.bn2 = torch.nn.BatchNorm1d(hidden_channels)
-        self.lin2 = torch.nn.Linear(hidden_channels, num_classes)
+    def __init__(self, num_node_features, hidden_channels=128, num_layers=4):
+        super().__init__()
+        self.lin0 = Linear(num_node_features, hidden_channels)
+        self.bn0  = BatchNorm1d(hidden_channels)
+        self.conv = GatedGraphConv(hidden_channels, num_layers)
+        self.bn1  = BatchNorm1d(hidden_channels)
+        self.lin1 = Linear(hidden_channels, hidden_channels // 2)
+        self.bn2  = BatchNorm1d(hidden_channels // 2)
+        self.lin2 = Linear(hidden_channels // 2, 2)
 
     def forward(self, data):
-        x, edge_index = data.x, data.edge_index
-        batch = data.batch if hasattr(data, "batch") else None
-
-        # Input projection
-        x = self.lin0(x)
-        x = self.bn0(x)
-        x = F.relu(x)
-
-        # Gated Graph Conv
-        x = self.ggnn(x, edge_index)
-        x = self.bn1(x)
-
-        # Readout / Global Pooling
-        from torch_geometric.nn import global_mean_pool
-
+        x, edge_index, batch = data.x, data.edge_index, data.batch
+        x = F.relu(self.bn0(self.lin0(x)))
+        x = self.conv(x, edge_index)
+        x = F.relu(self.bn1(x))
         x = global_mean_pool(x, batch)
-
-        # MLP for classification
         x = F.dropout(x, p=0.5, training=self.training)
-        x = self.lin1(x)
-        x = self.bn2(x)
-        x = F.relu(x)
-        x = self.lin2(x)
+        x = F.relu(self.bn2(self.lin1(x)))
+        return F.log_softmax(self.lin2(x), dim=1)
 
-        return F.log_softmax(x, dim=1)
 
+# ── Multi-task GGNN (production) ──────────────────────────────────────────────
 
 class MultiHeadGGNN(torch.nn.Module):
     """
-    Multi-task GGNN with two heads:
-    - Head A: Binary scream detection (scream vs ambient)
-    - Head B: Emotion classification (fear, pain, anger, joy, distress)
+    Multi-task GNN for joint scream detection and emotion classification.
 
-    Includes optional Domain Adversarial Training (DANN) for domain adaptation.
+    Architecture
+    ────────────
+    Input: temporal frame graph  (T nodes, F features each)
+      ├─ Linear(F → H) + BN + ReLU                       [node projection]
+      ├─ GatedGraphConv(H, num_layers) + BN + ReLU        [message passing]
+      ├─ global_mean_pool ⊕ global_max_pool  → (2H,)      [dual readout]
+      └─ Trunk: Linear(2H→H) + BN + ReLU + Dropout(0.4)
+               Linear(H→H//2) + BN + ReLU                [shared repr]
+         ├─ Head A – scream:  Linear→ReLU→Drop→Linear(2) → log_softmax
+         ├─ Head B – emotion: Linear→ReLU→Drop→Linear(K) → log_softmax
+         └─ Head C – domain:  Linear→ReLU→Drop→Linear(2) → log_softmax  [DANN]
+
+    Parameters
+    ──────────
+    lstm_hidden  kept for config backwards-compat; repurposed as trunk width.
     """
 
     def __init__(
         self,
         num_node_features,
-        hidden_channels=64,
-        num_layers=4,
-        num_emotion_classes=6,
-        lstm_hidden=64,
-        use_dann=True,
+        hidden_channels = 256,
+        num_layers      = 8,
+        num_emotion_classes = 5,
+        lstm_hidden     = 256,   # reused as trunk hidden dim
+        use_dann        = True,
     ):
-        super(MultiHeadGGNN, self).__init__()
-
+        super().__init__()
         self.use_dann = use_dann
-        self.hidden_channels = hidden_channels
+        H = hidden_channels
+        T = lstm_hidden  # trunk width
 
-        # Input projection
-        self.lin0 = torch.nn.Linear(num_node_features, hidden_channels)
-        self.bn0 = torch.nn.BatchNorm1d(hidden_channels)
+        # ── Input projection ──────────────────────────────────────────────────
+        self.lin0 = Linear(num_node_features, H)
+        self.bn0  = BatchNorm1d(H)
 
-        # Gated Graph Conv layers
-        self.ggnn = GatedGraphConv(hidden_channels, num_layers=num_layers)
-        self.bn1 = torch.nn.BatchNorm1d(hidden_channels)
+        # ── Graph convolution ─────────────────────────────────────────────────
+        self.conv = GatedGraphConv(H, num_layers)
+        self.bn1  = BatchNorm1d(H)
 
-        # LSTM for temporal context
-        self.lstm = torch.nn.LSTM(
-            hidden_channels, lstm_hidden, num_layers=1, batch_first=True
-        )
-
-        # Shared representation layer
-        self.shared_lin = torch.nn.Linear(lstm_hidden, hidden_channels)
-        self.shared_bn = torch.nn.BatchNorm1d(hidden_channels)
-
-        # Head A: Binary Scream Classification
-        self.head_scream = torch.nn.Sequential(
-            torch.nn.Linear(hidden_channels, hidden_channels // 2),
+        # ── Shared trunk (input = 2H from dual pool) ──────────────────────────
+        self.trunk = torch.nn.Sequential(
+            Linear(2 * H, H),
+            BatchNorm1d(H),
             torch.nn.ReLU(),
-            torch.nn.Dropout(0.3),
-            torch.nn.Linear(hidden_channels // 2, 2),  # 2 classes: scream, ambient
-        )
-
-        # Head B: Emotion Classification (5 classes: fear, pain, anger, joy, distress)
-        self.head_emotion = torch.nn.Sequential(
-            torch.nn.Linear(hidden_channels, hidden_channels // 2),
+            torch.nn.Dropout(0.5),  # Increased for better regularization
+            Linear(H, T),
+            BatchNorm1d(T),
             torch.nn.ReLU(),
-            torch.nn.Dropout(0.3),
-            torch.nn.Linear(hidden_channels // 2, num_emotion_classes),
         )
 
-        # Domain Discriminator (for DANN)
-        if use_dann:
-            self.domain_discriminator = torch.nn.Sequential(
-                torch.nn.Linear(hidden_channels, hidden_channels // 2),
+        # ── Task heads ────────────────────────────────────────────────────────
+        def _head(out_dim):
+            return torch.nn.Sequential(
+                Linear(T, T // 2),
                 torch.nn.ReLU(),
-                torch.nn.Dropout(0.3),
-                torch.nn.Linear(
-                    hidden_channels // 2, 2
-                ),  # 2 domains: real, emotion datasets
+                torch.nn.Dropout(0.4),  # Increased for better regularization
+                Linear(T // 2, out_dim),
             )
 
-    def forward(self, data, return_features=False):
-        """
-        Forward pass.
+        self.head_scream  = _head(2)
+        self.head_emotion = _head(num_emotion_classes)
+        if use_dann:
+            self.domain_disc = _head(2)
 
-        Args:
-            data: PyG Data object with x and edge_index
-            return_features: If True, return shared features for analysis
+    def forward(self, data):
+        x, edge_index, batch = data.x, data.edge_index, data.batch
 
-        Returns:
-            scream_logits: (batch, 2) - log softmax
-            emotion_logits: (batch, num_emotion_classes) - log softmax
-            domain_logits: (batch, 2) - log softmax (only if use_dann=True)
-        """
-        x, edge_index = data.x, data.edge_index
-        batch = data.batch if hasattr(data, "batch") else None
+        # Node embedding
+        x = F.relu(self.bn0(self.lin0(x)))
+        x = F.relu(self.bn1(self.conv(x, edge_index)))
 
-        # Input projection
-        x = self.lin0(x)
-        x = self.bn0(x)
-        x = F.relu(x)
+        # Dual graph readout
+        x = torch.cat([global_mean_pool(x, batch),
+                        global_max_pool(x, batch)], dim=1)  # (B, 2H)
 
-        # Gated Graph Conv
-        x = self.ggnn(x, edge_index)
-        x = self.bn1(x)
+        shared = self.trunk(x)  # (B, T)
 
-        # Global pooling
-        x = global_mean_pool(x, batch)
-
-        # LSTM for temporal context
-        x = x.unsqueeze(1)  # (batch, 1, hidden)
-        lstm_out, _ = self.lstm(x)
-        x = lstm_out.squeeze(1)  # (batch, lstm_hidden)
-
-        # Shared representation
-        shared = self.shared_lin(x)
-        shared = self.shared_bn(shared)
-        shared = F.relu(shared)
-
-        # Head outputs
-        scream_logits = F.log_softmax(self.head_scream(shared), dim=1)
-        emotion_logits = F.log_softmax(self.head_emotion(shared), dim=1)
+        s_out = F.log_softmax(self.head_scream(shared),  dim=1)
+        e_out = F.log_softmax(self.head_emotion(shared), dim=1)
 
         if self.use_dann:
-            domain_logits = F.log_softmax(self.domain_discriminator(shared), dim=1)
-            if return_features:
-                return scream_logits, emotion_logits, domain_logits, shared
-            return scream_logits, emotion_logits, domain_logits
+            d_out = F.log_softmax(self.domain_disc(shared), dim=1)
+            return s_out, e_out, d_out
 
-        if return_features:
-            return scream_logits, emotion_logits, shared
-        return scream_logits, emotion_logits
+        return s_out, e_out
 
+    # ── Convenience helpers ───────────────────────────────────────────────────
     def get_scream_prob(self, data):
-        """Helper to get scream probability."""
-        scream_logits, *_ = self.forward(data)
-        return torch.exp(scream_logits)[:, 1]
+        out = self.forward(data)
+        return torch.exp(out[0])[0][1].item()
 
     def get_emotion_prob(self, data):
-        """Helper to get emotion probabilities."""
-        _, emotion_logits, *_ = self.forward(data)
-        return torch.exp(emotion_logits)
-
-
-class DomainDiscriminator(torch.nn.Module):
-    """
-    Standalone domain discriminator for checking domain-invariant features.
-    Used during evaluation to verify DANN is working.
-    """
-
-    def __init__(self, input_dim=64, hidden_dim=32):
-        super(DomainDiscriminator, self).__init__()
-
-        self.net = torch.nn.Sequential(
-            torch.nn.Linear(input_dim, hidden_dim),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.3),
-            torch.nn.Linear(hidden_dim, 2),
-        )
-
-    def forward(self, x):
-        return F.log_softmax(self.net(x), dim=1)
+        out = self.forward(data)
+        if not isinstance(out, (list, tuple)) or len(out) < 2:
+            return None
+        return torch.exp(out[1])[0].cpu().numpy()
